@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "Pcelinjak",
+    "slug": "pcelinjak",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.posavski.pcelinjak"
+    },
+    "android": {
+      "package": "com.posavski.pcelinjak",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#F5A623"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sharing",
+      "expo-font",
+      "@react-native-community/datetimepicker"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "cbbf8f5f-30f3-478a-9c99-3b229a551168"
+      }
+    }
+  }
+}

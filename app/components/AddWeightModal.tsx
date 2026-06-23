@@ -1,0 +1,96 @@
+import { useState, useEffect } from 'react';
+import {
+  Modal, View, Text, TextInput, TouchableOpacity,
+  StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable,
+} from 'react-native';
+import { supabase } from '../lib/supabase';
+import { todayDisplay, displayToISO } from '../lib/dateUtils';
+import { colors, fonts, radius } from '../lib/theme';
+import type { Weight } from '../types';
+
+type Props = { visible: boolean; hiveId: string; editItem?: Weight; onClose: () => void; onSuccess: () => void; };
+
+function isoToDisplay(iso: string): string {
+  const d = new Date(iso + 'T00:00:00');
+  return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+}
+
+export function AddWeightModal({ visible, hiveId, editItem, onClose, onSuccess }: Props) {
+  const isEdit = !!editItem;
+  const [dateInput, setDateInput] = useState(todayDisplay());
+  const [weightInput, setWeightInput] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!visible) return;
+    if (editItem) {
+      setDateInput(isoToDisplay(editItem.date));
+      setWeightInput(String(editItem.weight_kg));
+    } else {
+      setDateInput(todayDisplay());
+      setWeightInput('');
+    }
+  }, [visible]);
+
+  const reset = () => { setDateInput(todayDisplay()); setWeightInput(''); };
+  const handleClose = () => { reset(); onClose(); };
+
+  const handleSubmit = async () => {
+    const isoDate = displayToISO(dateInput);
+    if (!isoDate) { Alert.alert('Greška', 'Unesite datum u formatu DD.MM.YYYY.'); return; }
+    const kg = parseFloat(weightInput.replace(',', '.'));
+    if (!weightInput || isNaN(kg) || kg <= 0) { Alert.alert('Greška', 'Unesite validnu kilažu (npr. 38.5).'); return; }
+    setSubmitting(true);
+    let error;
+    if (isEdit && editItem) {
+      ({ error } = await supabase.from('weights').update({ date: isoDate, weight_kg: kg }).eq('id', editItem.id));
+    } else {
+      ({ error } = await supabase.from('weights').insert({ hive_id: hiveId, date: isoDate, weight_kg: kg }));
+    }
+    setSubmitting(false);
+    if (error) { Alert.alert('Greška', error.message); return; }
+    reset(); onSuccess();
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <Pressable style={styles.overlay} onPress={handleClose}>
+        <Pressable style={styles.sheet} onPress={() => {}}>
+          <Text style={styles.title}>{isEdit ? 'Uredi kilažu' : 'Unos kilaže'}</Text>
+
+          <Text style={styles.label}>Datum (DD.MM.YYYY)</Text>
+          <TextInput style={styles.input} value={dateInput} onChangeText={setDateInput}
+            placeholder="npr. 08.06.2026" keyboardType="numbers-and-punctuation" placeholderTextColor={colors.mutedForeground} />
+
+          <Text style={styles.label}>Kilaza (kg)</Text>
+          <TextInput style={styles.input} value={weightInput} onChangeText={setWeightInput}
+            keyboardType="decimal-pad" placeholder="npr. 38.5" placeholderTextColor={colors.mutedForeground} />
+
+          <View style={styles.buttons}>
+            <TouchableOpacity style={styles.cancelBtn} onPress={handleClose}>
+              <Text style={styles.cancelText}>Odustani</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={submitting}>
+              {submitting ? <ActivityIndicator color={colors.background} /> : <Text style={styles.submitText}>Spremi</Text>}
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+        </Pressable>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(46,38,31,0.45)' },
+  sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 24, paddingBottom: 80 },
+  title: { fontSize: 22, fontFamily: fonts.heading, color: colors.charcoal, marginBottom: 16 },
+  label: { fontSize: 14, fontFamily: fonts.bodyBold, color: colors.charcoalLight, marginBottom: 6, marginTop: 12 },
+  input: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: 12, fontSize: 16, fontFamily: fonts.body, color: colors.charcoal, backgroundColor: colors.background },
+  buttons: { flexDirection: 'row', gap: 12, marginTop: 24 },
+  cancelBtn: { flex: 1, padding: 14, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
+  cancelText: { fontSize: 16, fontFamily: fonts.body, color: colors.mutedForeground },
+  submitBtn: { flex: 1, padding: 14, borderRadius: radius.lg, backgroundColor: colors.honey, alignItems: 'center' },
+  submitText: { fontSize: 16, fontFamily: fonts.bodyBold, color: colors.background },
+});
